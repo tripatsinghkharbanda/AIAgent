@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>G2 Chatbot</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{
+  --bg:#eef2f9; --panel:#fff; --text:#0f172a; --muted:#64748b; --border:#e2e8f0;
+  --accent:#2563eb; --accent-strong:#1d4ed8; --chip:#eff6ff; --bot:#f1f5f9;
+  --shadow:0 1px 2px rgba(15,23,42,.05), 0 12px 32px rgba(15,23,42,.07); --radius:14px;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0b1220;--panel:#111a2b;--text:#e8eefb;--muted:#94a3b8;--border:#22304a;
+        --accent:#3b82f6;--accent-strong:#60a5fa;--chip:#16243d;--bot:#16243d;
+        --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 32px rgba(0,0,0,.35);}
+}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);display:flex;flex-direction:column;
+  font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+/* header + tabs */
+.appbar{display:flex;align-items:center;gap:14px;padding:10px 16px;background:var(--panel);
+  border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:18px}
+.logo{background:linear-gradient(135deg,var(--accent),#7c3aed);color:#fff;padding:4px 9px;
+  border-radius:10px;font-size:15px;letter-spacing:.5px}
+.tabs{display:flex;gap:6px;margin-left:auto;background:var(--bg);padding:4px;border-radius:999px;
+  overflow-x:auto;max-width:100%;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{border:0;background:transparent;color:var(--muted);padding:7px 14px;border-radius:999px;
+  font:inherit;font-weight:600;cursor:pointer;white-space:nowrap}
+.tab.active{background:var(--panel);color:var(--text);box-shadow:var(--shadow)}
+/* layout */
+main{flex:1;min-height:0;display:flex;flex-direction:column;max-width:900px;width:100%;margin:0 auto;padding:14px}
+.panel{display:none;flex:1;min-height:0;flex-direction:column}
+.panel.active{display:flex}
+.scroll{overflow-y:auto;padding:8px 4px 24px}
+/* chat */
+.toolbar{display:flex;align-items:center;gap:10px;padding:8px 4px;flex-wrap:wrap}
+.toolbar label{font-size:13px;font-weight:600;color:var(--muted)}
+.messages{flex:1;overflow-y:auto;padding:8px 4px 16px;display:flex;flex-direction:column;gap:14px}
+.msg{display:flex;gap:10px;align-items:flex-start}
+.msg.user{justify-content:flex-end}
+.msg .bubble{background:var(--bot);padding:12px 14px;border-radius:var(--radius);max-width:min(100%,660px)}
+.msg.user .bubble{background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+.msg.bot .bubble{border-bottom-left-radius:4px;box-shadow:var(--shadow)}
+.avatar{width:32px;height:32px;border-radius:10px;flex:0 0 auto;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--accent),#7c3aed);color:#fff;font-size:12px;font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.chip{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;
+  background:var(--chip);color:var(--muted);padding:3px 8px;border-radius:999px}
+.chip.src{color:var(--accent-strong)}
+.body{margin:4px 0}
+.block+.block{margin-top:12px;padding-top:12px;border-top:1px dashed var(--border)}
+.link{display:inline-block;margin-top:8px;font-weight:600;color:var(--accent-strong);
+  text-decoration:none;font-size:13px}
+.link:hover{text-decoration:underline}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.typing .dot{display:inline-block;width:7px;height:7px;margin:0 2px;border-radius:50%;
+  background:var(--muted);animation:bounce 1.2s infinite}
+.typing .dot:nth-child(2){animation-delay:.15s}
+.typing .dot:nth-child(3){animation-delay:.3s}
+@keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:.5}30%{transform:translateY(-5px);opacity:1}}
+.suggests{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.sug{background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:999px;
+  padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}
+.sug:hover{border-color:var(--accent)}
+.composer{display:flex;gap:10px;padding:10px 4px 4px;border-top:1px solid var(--border)}
+.composer input{flex:1}
+/* controls */
+input,select,textarea{font:inherit;color:var(--text);background:var(--panel);
+  border:1px solid var(--border);border-radius:10px;padding:9px 12px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
+button.primary{background:var(--accent);color:#fff;border:0;border-radius:10px;
+  padding:10px 18px;font:inherit;font-weight:600;cursor:pointer}
+button.primary:hover{background:var(--accent-strong)}
+button.ghost{background:transparent;border:1px solid var(--border);color:var(--muted);
+  border-radius:10px;padding:9px 13px;font:inherit;cursor:pointer}
+button.danger{background:#dc2626;color:#fff;border:0;border-radius:10px;padding:10px 16px;
+  font:inherit;font-weight:600;cursor:pointer}
+/* apps */
+h2{font-size:20px;margin:6px 0 4px}
+.hint{color:var(--muted);font-size:13px;margin:6px 0}
+.appform{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.appform #appName{flex:1;min-width:130px}
+.appform #appUrl{flex:2;min-width:170px}
+#appEmoji{width:58px;text-align:center}
+.appgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(152px,1fr));gap:12px;margin-top:14px}
+.appcard{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+  padding:12px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:6px}
+.apptop{display:flex;align-items:center;justify-content:space-between}
+.appemoji{font-size:22px}
+.del{border:0;background:transparent;color:var(--muted);font-size:18px;line-height:1;
+  cursor:pointer;border-radius:8px;padding:2px 7px}
+.del:hover{background:#fee2e2;color:#dc2626}
+.appname{font-weight:700}
+.appurl{font-size:12px;color:var(--muted);word-break:break-all}
+.open{margin-top:auto;font-size:13px;font-weight:600;color:var(--accent-strong);text-decoration:none}
+/* calculator */
+.calc{display:flex;flex-direction:column;gap:14px;max-width:420px;margin:0 auto;width:100%}
+.calc-display{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px 18px;text-align:right;box-shadow:var(--shadow)}
+.calc-expr{font-size:13px;color:var(--muted);min-height:18px;word-break:break-all}
+.calc-out{font-size:34px;font-weight:700;line-height:1.2;word-break:break-all}
+.calc-keys{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.key{border:1px solid var(--border);background:var(--panel);color:var(--text);border-radius:12px;
+  padding:14px 0;font:inherit;font-size:18px;font-weight:600;cursor:pointer;
+  box-shadow:var(--shadow);transition:transform .06s ease}
+.key:active{transform:scale(.96)}
+.key.op{color:var(--accent-strong)}
+.key.fn{color:var(--muted);font-size:16px}
+.key.eq{background:var(--accent);color:#fff;border-color:transparent}
+.key.eq:hover{background:var(--accent-strong)}
+.calc-hist{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+  padding:12px 14px;box-shadow:var(--shadow)}
+.calc-hist h3{margin:0 0 8px;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.hist-row{display:flex;justify-content:space-between;gap:10px;padding:7px 0;
+  border-top:1px dashed var(--border);font-size:14px;cursor:pointer}
+.hist-row:hover .hist-expr{color:var(--accent-strong)}
+.hist-expr{color:var(--muted);word-break:break-all}
+.hist-val{font-weight:700;white-space:nowrap}
+/* notes */
+.notes-wrap{display:flex;flex-direction:column;gap:10px}
+#notesArea{width:100%;min-height:340px;resize:vertical;line-height:1.65}
+.notes-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+/* knowledge base */
+.kbform{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.kbform input,.kbform textarea{width:100%}
+.kbform textarea{resize:vertical;line-height:1.55}
+.kbform-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.kb-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:18px 0 10px}
+.kb-toolbar input{flex:1;min-width:160px}
+.kblist{display:flex;flex-direction:column;gap:10px}
+.kb-item{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+  padding:12px 14px;box-shadow:var(--shadow);display:flex;gap:12px;
+  align-items:flex-start;flex-wrap:wrap}
+.kb-item.editing{border-color:var(--accent)}
+.kb-text{flex:1;min-width:180px}
+.kb-q{font-weight:700}
+.kb-a{color:var(--muted);font-size:14px;margin-top:2px}
+.kb-actions{display:flex;gap:6px;flex-wrap:wrap}
+.mini{border:1px solid var(--border);background:transparent;color:var(--text);border-radius:8px;
+  padding:5px 10px;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
+.mini:hover{border-color:var(--accent);color:var(--accent-strong)}
+.mini.edit{border-color:var(--accent);color:var(--accent-strong)}
+.mini.warn:hover{border-color:#dc2626;color:#dc2626}
+/* settings */
+.card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+.card h3{margin:0 0 6px;font-size:16px}
+.card label{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:12px 0 4px}
+.card label.row{display:flex;align-items:center;gap:8px;color:var(--text);font-weight:500;margin-top:14px}
+.card input[type=text],.card input:not([type]){width:100%}
+.card input[type=checkbox]{width:auto}
+.note{font-size:13px;color:var(--accent-strong);margin-left:10px}
+</style>
+</head>
+<body>
+
+<header class="appbar">
+  <div class="brand"><span class="logo">G2</span><span class="name">Chatbot</span></div>
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="chat" type="button">Chat</button>
+    <button class="tab" data-tab="apps" type="button">Apps</button>
+    <button class="tab" data-tab="calc" type="button">Calculator</button>
+    <button class="tab" data-tab="notes" type="button">Notes</button>
+    <button class="tab" data-tab="kb" type="button">Knowledge base</button>
+    <button class="tab" data-tab="settings" type="button">Settings</button>
+  </nav>
+</header>
+
+<main>
+  <!-- ============ CHAT ============ -->
+  <section class="panel active" id="panel-chat">
+    <div class="toolbar">
+      <label for="sourceSelect">Answer source</label>
+      <select id="sourceSelect">
+        <option value="auto">Auto — knowledge base, then Wikipedia</option>
+        <option value="kb">Knowledge base only</option>
+        <option value="wiki">Wikipedia only</option>
+        <option value="google">Google only</option>
+        <option value="all">Compare all sources</option>
+      </select>
+      <button class="ghost" id="clearChat" type="button">Clear chat</button>
+    </div>
+    <div class="messages" id="messages"></div>
+    <form class="composer" id="composer">
+      <input id="input" type="text" placeholder="Ask a question…" autocomplete="off" />
+      <button class="primary" type="submit">Send</button>
+    </form>
+  </section>
+
+  <!-- ============ APPS ============ -->
+  <section class="panel" id="panel-apps">
+    <div class="scroll">
+      <h2>Quick-access apps</h2>
+      <p class="hint">Add your own links, then tap a card to open it in a new tab. Remove any you don't want.</p>
+      <form class="appform" id="appForm">
+        <input id="appEmoji" maxlength="2" placeholder="🔗" aria-label="Icon" />
+        <input id="appName" placeholder="App name" required />
+        <input id="appUrl" placeholder="example.com" required />
+        <button class="primary" type="submit">Add app</button>
+      </form>
+      <div class="appgrid" id="appGrid"></div>
+    </div>
+  </section>
+
+  <!-- ============ CALCULATOR ============ -->
+  <section class="panel" id="panel-calc">
+    <div class="scroll">
+      <div class="calc">
+        <div class="calc-display">
+          <div class="calc-expr" id="calcExpr"></div>
+          <div class="calc-out" id="calcOut">0</div>
+        </div>
+        <div class="calc-keys" id="calcKeys">
+          <button class="key fn" data-k="C" type="button">C</button>
+          <button class="key fn" data-k="B" type="button">⌫</button>
+          <button class="key fn" data-k="%" type="button">%</button>
+          <button class="key op" data-k="/" type="button">÷</button>
+
+          <button class="key" data-k="7" type="button">7</button>
+          <button class="key" data-k="8" type="button">8</button>
+          <button class="key" data-k="9" type="button">9</button>
+          <button class="key op" data-k="*" type="button">×</button>
+
+          <button class="key" data-k="4" type="button">4</button>
+          <button class="key" data-k="5" type="button">5</button>
+          <button class="key" data-k="6" type="button">6</button>
+          <button class="key op" data-k="-" type="button">−</button>
+
+          <button class="key" data-k="1" type="button">1</button>
+          <button class="key" data-k="2" type="button">2</button>
+          <button class="key" data-k="3" type="button">3</button>
+          <button class="key op" data-k="+" type="button">+</button>
+
+          <button class="key fn" data-k="(" type="button">(</button>
+          <button class="key fn" data-k=")" type="button">)</button>
+          <button class="key fn" data-k="N" type="button">±</button>
+          <button class="key" data-k="0" type="button">0</button>
+
+          <button class="key" data-k="." type="button">.</button>
+          <button class="key eq" data-k="=" type="button" style="grid-column:span 3">=</button>
+        </div>
+        <div class="calc-hist" id="calcHist"><h3>History</h3></div>
+        <p class="hint">Keyboard works too: digits, <strong>+ − * /</strong>, <strong>Enter</strong> to
+        solve, <strong>Backspace</strong> to delete, <strong>Esc</strong> to clear. Click a history row to reuse that number.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ NOTES ============ -->
+  <section class="panel" id="panel-notes">
+    <div class="scroll">
+      <div class="notes-wrap">
+        <h2>Notes</h2>
+        <p class="hint">A scratchpad that saves itself in this browser.</p>
+        <textarea id="notesArea" placeholder="Jot something down…" spellcheck="true"></textarea>
+        <div class="notes-bar">
+          <span class="hint" id="notesStatus">Saved</span>
+          <span class="hint" id="notesCount">0 words</span>
+          <button class="ghost" id="notesClear" type="button">Clear notes</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ KNOWLEDGE BASE ============ -->
+  <section class="panel" id="panel-kb">
+    <div class="scroll" id="kbScroll">
+      <h2>Knowledge base</h2>
+      <p class="hint">These are the questions G2 answers instantly, before it ever calls Wikipedia.
+      Add your own, edit the built-in ones, or delete any you don't want. Changes save automatically.</p>
+
+      <form class="kbform" id="kbForm">
+        <input id="kbQ" placeholder="Question" required />
+        <textarea id="kbA" placeholder="Answer" rows="3" required></textarea>
+        <div class="kbform-actions">
+          <button class="primary" type="submit" id="kbSubmit">Add entry</button>
+          <button class="ghost" type="button" id="kbCancel" hidden>Cancel edit</button>
+          <span class="note" id="kbEditNote"></span>
+        </div>
+      </form>
+
+      <div class="kb-toolbar">
+        <input id="kbFilter" placeholder="Search entries…" />
+        <span class="hint" id="kbCount"></span>
+        <button class="ghost" id="kbRestore" type="button">Restore defaults</button>
+      </div>
+
+      <div class="kblist" id="kblist"></div>
+    </div>
+  </section>
+
+  <!-- ============ SETTINGS ============ -->
+  <section class="panel" id="panel-settings">
+    <div class="scroll">
+      <h2>Settings</h2>
+      <div class="card">
+        <h3>Google integration</h3>
+        <p class="hint">Wikipedia needs no key. By default G2 offers a “Search on Google” link. To show Google
+        results inline instead, paste a free Programmable Search key and engine ID
+        (programmablesearchengine.google.com). Everything stays in this browser.</p>
+        <label for="gkey">Google API key</label>
+        <input id="gkey" type="text" placeholder="AIza…" />
+        <label for="gcx">Search engine ID (CX)</label>
+        <input id="gcx" type="text" placeholder="0123456789:abcdefg" />
+        <label class="row"><input type="checkbox" id="gfb" /> Always show the “Search on Google” button</label>
+        <div style="margin-top:14px">
+          <button class="primary" id="saveSettings" type="button">Save settings</button>
+          <span class="note" id="saveNote"></span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Data</h3>
+        <p class="hint">Chat history, apps, notes, the knowledge base and settings are stored only in
+        this browser (localStorage).</p>
+        <button class="danger" id="resetAll" type="button">Reset everything</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+/* =========================================================
+   G2 Chatbot — default knowledge base (20 questions)
+   Users can edit this at runtime in the Knowledge base tab.
+   ========================================================= */
+const DEFAULT_KB = [
+  {q:"What is the capital of France?", a:"Paris is the capital and largest city of France, on the Seine River. It is the country's political, cultural and economic centre and one of the most visited cities in the world."},
+  {q:"What is the largest planet in the Solar System?", a:"Jupiter. It is a gas giant more massive than all the other planets combined, and it has the Great Red Spot, a giant storm larger than Earth."},
+  {q:"Who wrote Romeo and Juliet?", a:"William Shakespeare, the English playwright, wrote it early in his career, around 1591–1595. It is a tragedy about two young lovers from feuding families in Verona."},
+  {q:"What is the chemical symbol for gold?", a:"Au, from the Latin word aurum. Gold is atomic number 79 — a dense, soft, yellow, corrosion-resistant metal used in jewellery and electronics."},
+  {q:"What is the tallest mountain on Earth?", a:"Mount Everest, in the Himalaya on the Nepal–China border. Its official height was set at 8,848.86 metres in 2020. (Mauna Kea is taller measured from its base on the sea floor, but Everest is highest above sea level.)"},
+  {q:"What is photosynthesis?", a:"The process by which green plants, algae and some bacteria convert light energy into chemical energy, using sunlight, water and carbon dioxide to make glucose and release oxygen."},
+  {q:"How many continents are there on Earth?", a:"Seven: Asia, Africa, North America, South America, Antarctica, Europe and Australia (Oceania)."},
+  {q:"Who painted the Mona Lisa?", a:"Leonardo da Vinci, the Italian polymath, painted it in the early 16th century. It is displayed in the Louvre in Paris."},
+  {q:"What is the speed of light?", a:"About 299,792,458 metres per second in a vacuum — roughly 300,000 km/s, or 186,282 miles per second."},
+  {q:"What is the largest ocean on Earth?", a:"The Pacific Ocean. It covers about a third of the planet's surface and holds more area than all the land combined."},
+  {q:"Who invented the telephone?", a:"Alexander Graham Bell received the first US patent for the telephone in 1876. Several inventors, including Antonio Meucci and Elisha Gray, worked on similar devices, so credit is still debated."},
+  {q:"What is the boiling point of water?", a:"100 °C (212 °F) at standard sea-level pressure. It is lower at higher altitudes because air pressure is lower."},
+  {q:"What is the capital of Japan?", a:"Tokyo, on the eastern coast of Honshu. It has been the capital since 1868 and is one of the world's largest metropolitan areas."},
+  {q:"What causes day and night?", a:"Earth's rotation on its axis, roughly once every 24 hours, so different parts of the planet face the Sun at different times."},
+  {q:"Who was the first person to walk on the Moon?", a:"Neil Armstrong, on 20 July 1969 during NASA's Apollo 11 mission. Buzz Aldrin followed him onto the surface."},
+  {q:"What is the largest animal on Earth?", a:"The blue whale, which can reach about 30 metres long and over 150 tonnes. It is the largest animal known to have ever lived."},
+  {q:"What is HTML?", a:"HyperText Markup Language — the standard markup language used to structure content on the web. Browsers read HTML and render it as pages."},
+  {q:"Who developed the theory of general relativity?", a:"Albert Einstein, published in 1915. It describes gravity as the curvature of spacetime caused by mass and energy."},
+  {q:"What is the powerhouse of the cell?", a:"Mitochondria — organelles that produce most of a cell's energy as ATP through respiration."},
+  {q:"What is the currency of Japan?", a:"The yen (¥), issued by the Bank of Japan. It is one of the most traded currencies in the world."}
+];
+
+/* =========================================================
+   Storage + state
+   ========================================================= */
+const LS = {
+  get(k, fb){ try{ const v = localStorage.getItem(k); return v == null ? fb : JSON.parse(v); }catch(e){ return fb; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+
+const DEFAULT_APPS = [
+  {id:'wikipedia', name:'Wikipedia', emoji:'📚', url:'https://en.wikipedia.org'},
+  {id:'google',    name:'Google',    emoji:'🔎', url:'https://www.google.com'},
+  {id:'youtube',   name:'YouTube',   emoji:'▶️', url:'https://www.youtube.com'}
+];
+
+const state = {
+  mode:         LS.get('g2_mode', 'auto'),
+  googleKey:    LS.get('g2_gkey', ''),
+  googleCx:     LS.get('g2_gcx',  ''),
+  alwaysGoogle: LS.get('g2_gfb',  true),
+  apps:         LS.get('g2_apps', DEFAULT_APPS),
+  kb:           []   // seeded below from saved data or DEFAULT_KB
+};
+
+const STORAGE_KEYS = ['g2_mode','g2_gkey','g2_gcx','g2_gfb','g2_apps','g2_notes','g2_kb'];
+
+/* =========================================================
+   DOM refs + helpers
+   ========================================================= */
+const $ = id => document.getElementById(id);
+const messages  = $('messages');
+const input     = $('input');
+const composer  = $('composer');
+const sourceSel = $('sourceSelect');
+const appGrid   = $('appGrid');
+const saveNote  = $('saveNote');
+
+const ESC = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ESC[c]); }
+function scrollDown(){ messages.scrollTop = messages.scrollHeight; }
+function hostOf(u){ try { return new URL(u).hostname.replace(/^www\./,''); } catch(e){ return u; } }
+function normalizeUrl(u){
+  u = (u || '').trim();
+  if (!u) return '';
+  if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+  try { new URL(u); return u; } catch(e){ return ''; }
+}
+
+/* =========================================================
+   Knowledge-base matching (fuzzy, uses state.kb)
+   ========================================================= */
+const STOP = new Set(('a an the of to in on for and or is are was were be been being what which who whom whose ' +
+  'when where why how do does did done can could should would will shall may might must i me my we our you your ' +
+  'he she it its they them their this that these those tell about from at as with by not no yes please give show').split(' '));
+
+const norm = s => s.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+const toks = s => norm(s).split(' ').filter(w => w && !STOP.has(w));
+const stem = w => (w.length > 3 && w.endsWith('s') && !w.endsWith('ss')) ? w.slice(0,-1) : w;
+
+function bestKb(question){
+  const qt = toks(question);
+  if (!qt.length || !state.kb.length) return null;
+  const set = new Set(qt.map(stem));
+  let best = null;
+  for (const item of state.kb){
+    const kt = toks(item.q);
+    if (!kt.length) continue;
+    let hit = 0;
+    for (const k of kt) if (set.has(stem(k))) hit++;
+    const coverage = hit / kt.length;
+    const bonus = norm(question) === norm(item.q) ? 0.25 : 0;
+    const score = Math.min(1, coverage + bonus);
+    if (!best || score > best.score) best = { q:item.q, a:item.a, score };
+  }
+  return best;
+}
+
+/* =========================================================
+   Source adapters
+   ========================================================= */
+const WIKI_API = 'https://en.wikipedia.org/w/api.php';
+
+async function wikiAnswer(question, limit){
+  limit = limit || 3;
+  const s = new URLSearchParams({ action:'query', format:'json', origin:'*', list:'search',
+                                  srsearch:question, srlimit:String(limit) });
+  const sRes = await fetch(WIKI_API + '?' + s);
+  if (!sRes.ok) throw new Error('Wikipedia search failed (' + sRes.status + ')');
+  const hits = ((await sRes.json()).query || {}).search || [];
+  if (!hits.length) return [];
+
+  const ids = hits.map(h => h.pageid).join('|');
+  const e = new URLSearchParams({ action:'query', format:'json', origin:'*',
+    prop:'extracts|pageimages', exintro:'1', explaintext:'1', exsentences:'5',
+    piprop:'thumbnail', pithumbsize:'160', redirects:'1', pageids:ids });
+  const pages = ((await (await fetch(WIKI_API + '?' + e)).json()).query || {}).pages || {};
+  const order = new Map(hits.map((h,i) => [String(h.pageid), i]));
+
+  return Object.values(pages).map(p => {
+    const i = order.has(String(p.pageid)) ? order.get(String(p.pageid)) : 99;
+    const hit = hits.find(h => h.pageid === p.pageid);
+    const snippet = hit ? hit.snippet.replace(/<[^>]*>/g,'') : '';
+    return { title:p.title, body:p.extract || snippet || 'No summary available.',
+             url:'https://en.wikipedia.org/?curid=' + p.pageid, index:i };
+  }).sort((a,b) => a.index - b.index);
+}
+
+async function googleAnswer(question){
+  if (!state.googleKey || !state.googleCx) return null;
+  const u = 'https://www.googleapis.com/customsearch/v1?key=' + encodeURIComponent(state.googleKey) +
+            '&cx=' + encodeURIComponent(state.googleCx) + '&num=3&q=' + encodeURIComponent(question);
+  const r = await fetch(u);
+  if (!r.ok) throw new Error('Google API returned ' + r.status +
+    (r.status === 403 ? ' (check the key is valid and the Custom Search API is enabled)' : ''));
+  const d = await r.json();
+  return (d.items || []).map(it => ({ title:it.title, body:it.snippet || '', url:it.link }));
+}
+
+/* =========================================================
+   Message rendering
+   ========================================================= */
+function addUser(text){
+  const w = document.createElement('div');
+  w.className = 'msg user';
+  w.innerHTML = '<div class="bubble">' + esc(text) + '</div>';
+  messages.appendChild(w);
+  scrollDown();
+}
+
+function addBot(blocks, query){
+  const w = document.createElement('div');
+  w.className = 'msg bot';
+  w.innerHTML = '<div class="avatar">G2</div><div class="bubble"></div>';
+  const bubble = w.querySelector('.bubble');
+
+  blocks.forEach(b => {
+    const div = document.createElement('div');
+    div.className = 'block';
+    const paragraphs = esc(b.body || '').split(/\n{2,}/)
+      .map(p => '<p class="body">' + p.replace(/\n/g,'<br>') + '</p>').join('');
+    let url = b.url || '';
+    if (b.isTemplate && query) url += encodeURIComponent(query);
+    div.innerHTML =
+      '<div class="chips"><span class="chip src">' + esc(b.label) + '</span>' +
+      (b.title ? '<span class="chip">' + esc(b.title) + '</span>' : '') + '</div>' +
+      paragraphs +
+      (url ? '<a class="link" href="' + esc(url) + '" target="_blank" rel="noopener">' +
+            esc(b.urlLabel || 'Read more') + ' ↗</a>' : '');
+    bubble.appendChild(div);
+  });
+
+  if (query && state.alwaysGoogle){
+    const row = document.createElement('div');
+    row.className = 'actions';
+    const a = document.createElement('a');
+    a.className = 'link';
+    a.target = '_blank'; a.rel = 'noopener';
+    a.href = 'https://www.google.com/search?q=' + encodeURIComponent(query);
+    a.textContent = '🔎 Search on Google';
+    row.appendChild(a);
+    bubble.appendChild(row);
+  }
+
+  messages.appendChild(w);
+  scrollDown();
+}
+
+function showTyping(){
+  const w = document.createElement('div');
+  w.className = 'msg bot typing';
+  w.innerHTML = '<div class="avatar">G2</div><div class="bubble">' +
+    '<span class="dot"></span><span class="dot"></span><span class="dot"></span></div>';
+  messages.appendChild(w);
+  scrollDown();
+  return w;
+}
+
+/* =========================================================
+   Answer pipeline
+   ========================================================= */
+let busy = false;
+
+async function ask(rawQuestion){
+  const question = String(rawQuestion || '').trim();
+  if (!question || busy) return;
+  busy = true;
+
+  addUser(question);
+  input.value = '';
+  const typing = showTyping();
+
+  const mode = state.mode;
+  let blocks = [];
+
+  try {
+    const kbHit    = bestKb(question);
+    const kbStrong = kbHit && kbHit.score >= 0.6;
+
+    if (mode === 'kb' || mode === 'all' || (mode === 'auto' && kbStrong)){
+      if (kbStrong){
+        blocks.push({ label:'Knowledge base', title:kbHit.q, body:kbHit.a });
+      } else if (mode === 'kb'){
+        blocks.push({ label:'Knowledge base', body:
+          'Nothing in the knowledge base matched that closely. Add it in the Knowledge base tab, or switch the source to Wikipedia or Auto.' });
+      }
+    }
+
+    const needsWiki = (mode === 'wiki' || mode === 'all') || (mode === 'auto' && !kbStrong);
+    if (needsWiki){
+      const found = await wikiAnswer(question, mode === 'all' ? 2 : 3);
+      if (found.length){
+        found.slice(0, mode === 'all' ? 2 : 1).forEach(p => blocks.push({
+          label:'Wikipedia', title:p.title, body:p.body, url:p.url, urlLabel:'Open on Wikipedia'
+        }));
+      } else if (mode === 'wiki'){
+        blocks.push({ label:'Wikipedia', body:
+          'No Wikipedia article matched that question. Try rephrasing it, or use the Google button below.' });
+      }
+    }
+
+    if (mode === 'google' || mode === 'all'){
+      let g = null;
+      try { g = await googleAnswer(question); } catch(e){ g = { error: e.message }; }
+      if (Array.isArray(g) && g.length){
+        g.forEach(it => blocks.push({
+          label:'Google', title:it.title, body:it.body, url:it.url, urlLabel:'Open result'
+        }));
+      } else if (g && g.error){
+        blocks.push({ label:'Google', body:g.error + ' Use the “Search on Google” button below.' });
+      } else {
+        blocks.push({ label:'Google', url:'https://www.google.com/search?q=', isTemplate:true,
+          body:'Inline Google results are off. Use the “Search on Google” button below, or add a key in Settings.' });
+      }
+    }
+
+    if (!blocks.length){
+      blocks.push({ label:'No answer', body:
+        'Nothing matched that question. Try rephrasing it, or use the Google button below.' });
+    }
+
+  } catch (err){
+    blocks = [{ label:'Connection problem',
+      body: (err && err.message ? err.message : 'The request failed.') +
+            '\n\nThis usually means you are offline, or a browser extension is blocking the request.' }];
+  }
+
+  typing.remove();
+  addBot(blocks, question);
+  busy = false;
+}
+
+/* =========================================================
+   Apps tab
+   ========================================================= */
+function renderApps(){
+  appGrid.innerHTML = '';
+  if (!state.apps.length){
+    appGrid.innerHTML = '<p class="hint">No apps yet — add one above.</p>';
+    return;
+  }
+  state.apps.forEach(app => {
+    const card = document.createElement('div');
+    card.className = 'appcard';
+    card.innerHTML =
+      '<div class="apptop"><span class="appemoji">' + esc(app.emoji || '🔗') + '</span>' +
+      '<button class="del" type="button" title="Delete" aria-label="Delete ' + esc(app.name) + '">×</button></div>' +
+      '<div class="appname">' + esc(app.name) + '</div>' +
+      '<div class="appurl">' + esc(hostOf(app.url)) + '</div>' +
+      '<a class="open" href="' + esc(app.url) + '" target="_blank" rel="noopener">Open ↗</a>';
+    card.querySelector('.del').addEventListener('click', () => deleteApp(app.id));
+    appGrid.appendChild(card);
+  });
+}
+
+function deleteApp(id){
+  state.apps = state.apps.filter(a => a.id !== id);
+  LS.set('g2_apps', state.apps);
+  renderApps();
+}
+
+$('appForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const emoji = $('appEmoji').value.trim();
+  const name  = $('appName').value.trim();
+  const url   = normalizeUrl($('appUrl').value);
+  if (!name || !url) return;
+  state.apps.push({ id:'a' + Date.now(), name, emoji: emoji || '🔗', url });
+  LS.set('g2_apps', state.apps);
+  $('appName').value = ''; $('appUrl').value = ''; $('appEmoji').value = '';
+  renderApps();
+});
+
+/* =========================================================
+   CALCULATOR — safe expression parser (no eval)
+   ========================================================= */
+function calcEval(inputText){
+  const s = String(inputText)
+    .replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-').replace(/\s+/g,'');
+  if (!s) throw new Error('Nothing to calculate');
+  if (!/^[0-9+\-*/%().]+$/.test(s)) throw new Error('Only numbers and + - * / % ( ) are allowed');
+
+  let i = 0;
+  const peek = () => s[i];
+
+  function parseExpression(){
+    let v = parseTerm();
+    for (;;){
+      const c = peek();
+      if (c === '+'){ i++; v += parseTerm(); }
+      else if (c === '-'){ i++; v -= parseTerm(); }
+      else return v;
+    }
+  }
+  function parseTerm(){
+    let v = parseUnary();
+    for (;;){
+      const c = peek();
+      if (c === '*'){ i++; v *= parseUnary(); }
+      else if (c === '/'){
+        i++;
+        const d = parseUnary();
+        if (d === 0) throw new Error('Cannot divide by zero');
+        v /= d;
+      }
+      else if (c === '%' && /[0-9(]/.test(s[i+1] || '')){ i++; v = v % parseUnary(); }
+      else return v;
+    }
+  }
+  function parseUnary(){
+    if (peek() === '-'){ i++; return -parseUnary(); }
+    if (peek() === '+'){ i++; return parseUnary(); }
+    return parsePostfix();
+  }
+  function parsePostfix(){
+    let v = parsePrimary();
+    while (peek() === '%' && !/[0-9(]/.test(s[i+1] || '')){ v = v / 100; i++; }
+    return v;
+  }
+  function parsePrimary(){
+    if (peek() === '('){
+      i++;
+      const v = parseExpression();
+      if (peek() !== ')') throw new Error('Missing closing bracket');
+      i++;
+      return v;
+    }
+    const start = i;
+    while (i < s.length && /[0-9.]/.test(s[i])) i++;
+    if (i === start) throw new Error('Unexpected character "' + (peek() || '') + '"');
+    const n = Number(s.slice(start, i));
+    if (!isFinite(n)) throw new Error('Invalid number');
+    return n;
+  }
+
+  const result = parseExpression();
+  if (i < s.length) throw new Error('Unexpected character "' + s[i] + '"');
+  if (!isFinite(result)) throw new Error('Result is not finite');
+  return result;
+}
+
+function fmt(n){
+  if (!isFinite(n)) return 'Error';
+  const abs = Math.abs(n);
+  if (abs !== 0 && (abs < 1e-9 || abs >= 1e12)) return n.toExponential(6).replace(/\.?0+e/, 'e');
+  return String(Number(Math.round(n * 1e10) / 1e10));
+}
+
+const calc = { expr:'', result:'0', history:[], error:'' };
+const calcExprEl = $('calcExpr');
+const calcOutEl  = $('calcOut');
+const calcHistEl = $('calcHist');
+const OPS = ['+','-','*','/','%'];
+
+function renderCalc(){
+  calcExprEl.textContent = calc.error ? calc.error : calc.expr;
+  calcOutEl.textContent  = calc.error ? 'Error' : calc.result;
+}
+
+function renderHist(){
+  calcHistEl.innerHTML = '<h3>History</h3>';
+  if (!calc.history.length){
+    const p = document.createElement('p');
+    p.className = 'hint';
+    p.textContent = 'Your recent calculations will appear here.';
+    calcHistEl.appendChild(p);
+    return;
+  }
+  calc.history.forEach(h => {
+    const row = document.createElement('div');
+    row.className = 'hist-row';
+    row.innerHTML = '<span class="hist-expr">' + esc(h.expr) + '</span>' +
+                    '<span class="hist-val">= ' + esc(h.value) + '</span>';
+    row.addEventListener('click', () => {
+      calc.expr = h.value; calc.result = h.value; calc.error = '';
+      renderCalc();
+    });
+    calcHistEl.appendChild(row);
+  });
+}
+
+function liveEvaluate(){
+  const s = calc.expr.trim();
+  if (!s){ calc.result = '0'; return; }
+  try { calc.result = fmt(calcEval(s)); } catch(e){ /* incomplete — keep last result */ }
+}
+
+function commit(){
+  const s = calc.expr.trim();
+  if (!s) return;
+  try {
+    const value = fmt(calcEval(s));
+    calc.history.unshift({ expr:s, value });
+    calc.history = calc.history.slice(0, 8);
+    calc.result = value;
+    calc.expr = '';
+    calc.error = '';
+  } catch(err){
+    calc.error = err.message || 'Error';
+  }
+  renderCalc();
+  renderHist();
+}
+
+function pressKey(k){
+  if (k !== '=') calc.error = '';
+
+  if (k === 'C'){ calc.expr = ''; calc.result = '0'; renderCalc(); return; }
+  if (k === 'B'){ calc.expr = calc.expr.slice(0, -1); liveEvaluate(); renderCalc(); return; }
+  if (k === '='){ commit(); return; }
+
+  if (k === 'N'){
+    const m = calc.expr.match(/(\d*\.?\d+)$/);
+    if (m){
+      const at = calc.expr.length - m[0].length;
+      calc.expr = calc.expr.slice(0, at) + (m[0].startsWith('-') ? m[0].slice(1) : '-' + m[0]);
+    } else {
+      calc.expr = calc.expr ? '-' + calc.expr : '-';
+    }
+    liveEvaluate(); renderCalc(); return;
+  }
+
+  if (calc.expr.length > 80) return;
+  if (OPS.includes(k) && !calc.expr && calc.result !== '0') calc.expr = calc.result;
+
+  const last = calc.expr.slice(-1);
+  if (OPS.includes(k) && OPS.includes(last)) calc.expr = calc.expr.slice(0, -1);
+
+  calc.expr += k;
+  liveEvaluate();
+  renderCalc();
+}
+
+$('calcKeys').addEventListener('click', e => {
+  const btn = e.target.closest('.key');
+  if (btn) pressKey(btn.dataset.k);
+});
+
+document.addEventListener('keydown', e => {
+  if (!$('panel-calc').classList.contains('active')) return;
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+  const k = e.key;
+  if (/^[0-9.()]$/.test(k)){ pressKey(k); e.preventDefault(); }
+  else if (k === '+' || k === '-' || k === '*' || k === '/' || k === '%'){ pressKey(k); e.preventDefault(); }
+  else if (k === 'Enter' || k === '='){ pressKey('='); e.preventDefault(); }
+  else if (k === 'Backspace'){ pressKey('B'); e.preventDefault(); }
+  else if (k === 'Escape'){ pressKey('C'); e.preventDefault(); }
+});
+
+/* =========================================================
+   NOTES
+   ========================================================= */
+const notesArea = $('notesArea');
+let noteTimer = null;
+
+function updateNoteCount(){
+  const words = notesArea.value.trim().split(/\s+/).filter(Boolean).length;
+  $('notesCount').textContent = words + (words === 1 ? ' word' : ' words');
+}
+
+notesArea.value = LS.get('g2_notes', '');
+updateNoteCount();
+
+notesArea.addEventListener('input', () => {
+  updateNoteCount();
+  $('notesStatus').textContent = 'Saving…';
+  clearTimeout(noteTimer);
+  noteTimer = setTimeout(() => {
+    LS.set('g2_notes', notesArea.value);
+    $('notesStatus').textContent = 'Saved';
+  }, 400);
+});
+
+$('notesClear').addEventListener('click', () => {
+  notesArea.value = '';
+  LS.set('g2_notes', '');
+  updateNoteCount();
+  $('notesStatus').textContent = 'Saved';
+  notesArea.focus();
+});
+
+/* =========================================================
+   KNOWLEDGE BASE TAB
+   ========================================================= */
+const kbList = $('kblist');
+let editingId = null;
+
+function freshDefaults(){
+  return DEFAULT_KB.map((item, i) => ({ id:'k' + i, q:item.q, a:item.a }));
+}
+
+function seedKb(){
+  const stored = LS.get('g2_kb', null);
+  return Array.isArray(stored) ? stored : freshDefaults();
+}
+
+function persistKb(){ LS.set('g2_kb', state.kb); }
+
+function resetKbForm(){
+  editingId = null;
+  $('kbQ').value = '';
+  $('kbA').value = '';
+  $('kbSubmit').textContent = 'Add entry';
+  $('kbCancel').hidden = true;
+  $('kbEditNote').textContent = '';
+}
+
+function renderKb(){
+  const filter = ($('kbFilter').value || '').trim().toLowerCase();
+  const rows = state.kb.filter(e => !filter ||
+    (e.q + ' ' + e.a).toLowerCase().includes(filter));
+
+  $('kbCount').textContent = state.kb.length +
+    (state.kb.length === 1 ? ' entry' : ' entries') +
+    (filter ? ' · ' + rows.length + ' shown' : '');
+
+  kbList.innerHTML = '';
+
+  if (!rows.length){
+    const p = document.createElement('p');
+    p.className = 'hint';
+    p.textContent = state.kb.length
+      ? 'No entries match that search.'
+      : 'Your knowledge base is empty. Add an entry above, or restore the defaults.';
+    kbList.appendChild(p);
+    return;
+  }
+
+  rows.forEach(e => {
+    const item = document.createElement('div');
+    item.className = 'kb-item' + (e.id === editingId ? ' editing' : '');
+    item.dataset.id = e.id;
+    item.innerHTML =
+      '<div class="kb-text">' +
+        '<div class="kb-q">' + esc(e.q) + '</div>' +
+        '<div class="kb-a">' + esc(e.a) + '</div>' +
+      '</div>' +
+      '<div class="kb-actions">' +
+        '<button class="mini" type="button" data-act="ask">Ask in chat</button>' +
+        '<button class="mini edit" type="button" data-act="edit">Edit</button>' +
+        '<button class="mini warn" type="button" data-act="del">Delete</button>' +
+      '</div>';
+    kbList.appendChild(item);
+  });
+}
+
+kbList.addEventListener('click', ev => {
+  const btn = ev.target.closest('button[data-act]');
+  if (!btn) return;
+  const id = btn.closest('.kb-item').dataset.id;
+  const entry = state.kb.find(e => e.id === id);
+  if (!entry) return;
+
+  const act = btn.dataset.act;
+
+  if (act === 'ask'){
+    switchTab('chat');
+    ask(entry.q);
+    return;
+  }
+
+  if (act === 'del'){
+    state.kb = state.kb.filter(e => e.id !== id);
+    if (editingId === id) resetKbForm();
+    persistKb();
+    renderKb();
+    return;
+  }
+
+  if (act === 'edit'){
+    editingId = id;
+    $('kbQ').value = entry.q;
+    $('kbA').value = entry.a;
+    $('kbSubmit').textContent = 'Save changes';
+    $('kbCancel').hidden = false;
+    $('kbEditNote').textContent = 'Editing an existing entry';
+    $('kbScroll').scrollTop = 0;
+    $('kbQ').focus();
+    renderKb();
+    return;
+  }
+});
+
+$('kbForm').addEventListener('submit', ev => {
+  ev.preventDefault();
+  const q = $('kbQ').value.trim();
+  const a = $('kbA').value.trim();
+  if (!q || !a) return;
+
+  if (editingId){
+    const entry = state.kb.find(e => e.id === editingId);
+    if (entry){ entry.q = q; entry.a = a; }
+  } else {
+    state.kb.unshift({ id:'k' + Date.now(), q, a });
+  }
+
+  persistKb();
+  resetKbForm();
+  renderKb();
+});
+
+$('kbCancel').addEventListener('click', () => { resetKbForm(); renderKb(); });
+$('kbFilter').addEventListener('input', renderKb);
+
+$('kbRestore').addEventListener('click', () => {
+  if (!confirm('Replace your knowledge base with the 20 built-in questions?')) return;
+  state.kb = freshDefaults();
+  persistKb();
+  resetKbForm();
+  renderKb();
+});
+
+/* =========================================================
+   Settings
+   ========================================================= */
+function loadSettings(){
+  $('gkey').value  = state.googleKey;
+  $('gcx').value   = state.googleCx;
+  $('gfb').checked = !!state.alwaysGoogle;
+  sourceSel.value  = state.mode;
+}
+
+$('saveSettings').addEventListener('click', () => {
+  state.googleKey    = $('gkey').value.trim();
+  state.googleCx     = $('gcx').value.trim();
+  state.alwaysGoogle = $('gfb').checked;
+  LS.set('g2_gkey', state.googleKey);
+  LS.set('g2_gcx',  state.googleCx);
+  LS.set('g2_gfb',  state.alwaysGoogle);
+  saveNote.textContent = 'Saved ✓';
+  setTimeout(() => { saveNote.textContent = ''; }, 1800);
+});
+
+$('resetAll').addEventListener('click', () => {
+  STORAGE_KEYS.forEach(LS.del);
+  location.reload();
+});
+
+sourceSel.addEventListener('change', () => {
+  state.mode = sourceSel.value;
+  LS.set('g2_mode', state.mode);
+});
+$('gfb').addEventListener('change', () => {
+  state.alwaysGoogle = $('gfb').checked;
+  LS.set('g2_gfb', state.alwaysGoogle);
+});
+
+/* =========================================================
+   Tabs
+   ========================================================= */
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.panel').forEach(p =>
+    p.classList.toggle('active', p.id === 'panel-' + name));
+
+  if (name === 'chat')  input.focus();
+  if (name === 'notes') notesArea.focus();
+}
+
+$('tabs').addEventListener('click', e => {
+  const btn = e.target.closest('.tab');
+  if (btn) switchTab(btn.dataset.tab);
+});
+
+/* =========================================================
+   Chat basics
+   ========================================================= */
+composer.addEventListener('submit', e => {
+  e.preventDefault();
+  ask(input.value);
+});
+
+$('clearChat').addEventListener('click', () => {
+  messages.innerHTML = '';
+  welcome();
+});
+
+function welcome(){
+  const w = document.createElement('div');
+  w.className = 'msg bot';
+  w.innerHTML =
+    '<div class="avatar">G2</div><div class="bubble">' +
+      '<div class="chips"><span class="chip src">G2 Chatbot</span></div>' +
+      '<p class="body">Hi! Ask me anything — I answer from the knowledge base, from Wikipedia, or ' +
+      'from Google. Choose the source in the bar above, or leave it on <strong>Auto</strong>. ' +
+      'You can edit what I know in the <strong>Knowledge base</strong> tab, and there are ' +
+      '<strong>Calculator</strong> and <strong>Notes</strong> tabs up top.</p>' +
+      '<div class="suggests"></div>' +
+    '</div>';
+  messages.appendChild(w);
+  const box = w.querySelector('.suggests');
+  ['Who painted the Mona Lisa?','What is the tallest mountain on Earth?',
+   'What is the capital of Japan?','What is photosynthesis?'].forEach(t => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sug';
+    b.textContent = t;
+    b.addEventListener('click', () => ask(t));
+    box.appendChild(b);
+  });
+  scrollDown();
+}
+
+/* =========================================================
+   Boot
+   ========================================================= */
+state.kb = seedKb();
+loadSettings();
+renderApps();
+renderCalc();
+renderHist();
+renderKb();
+welcome();
+input.focus();
+</script>
+</body>
+</html>
